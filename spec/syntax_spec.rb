@@ -1,9 +1,10 @@
 require 'nokogiri'
 require 'hpricot'
 require 'builder'
+require 'hexp'
 
 shared_examples_for 'works on all builders' do
-  it 'using a block parameter on every call' do
+  it 'can be used with a block parameter to call build methods on' do
     expect(
       build do |xml|
         xml.div do |xml|
@@ -13,7 +14,7 @@ shared_examples_for 'works on all builders' do
     ).to match xml_parts %w[ <div> <br/> </div> ]
   end
 
-  it 'bare method calls, always using a block' do
+  it 'can use bare method calls, when using a block with each call' do
     expect(
       build do
         div do
@@ -23,6 +24,18 @@ shared_examples_for 'works on all builders' do
     ).to match xml_parts %w[<div> <br/> </div>]
   end
 
+  it 'can take attributes' do
+    expect(
+      build do
+        div class: "strong" do
+          br {}
+        end
+      end
+    ).to match xml_parts %w[<div class="strong" > <br/> </div>]
+  end
+end
+
+shared_examples_for 'works on all except Hexp' do
   it 'using << for literal XML/HTML' do
     expect(
       build do
@@ -136,6 +149,7 @@ describe 'Nokogiri::XML::Builder' do
   end
 
   include_examples 'works on all builders'
+  include_examples 'works on all except Hexp'
   include_examples 'works on Nokogiri and Builder'
   include_examples 'works only on Nokogiri'
 end
@@ -146,6 +160,7 @@ describe 'Hpricot::Builder' do
   end
 
   include_examples 'works on all builders'
+  include_examples 'works on all except Hexp'
   include_examples 'works on Hpricot and Builder'
 end
 
@@ -157,8 +172,17 @@ describe 'Builder::XmlMarkup' do
   end
 
   include_examples 'works on all builders'
+  include_examples 'works on all except Hexp'
   include_examples 'works on Nokogiri and Builder'
   include_examples 'works on Hpricot and Builder'
+end
+
+describe 'Hexp::Builder' do
+  def build(&block)
+    Hexp::Builder.new(&block).to_html
+  end
+
+  include_examples 'works on all builders'
 end
 
 # Given a list of xml tokens, return a regexp that matches an XML/HTML
@@ -169,11 +193,11 @@ end
 # * match both " and &quot;
 #
 def xml_parts(parts)
-  choice = ->(a,b) { "(#{a}|#{b})" }
+  choice = ->(*args) { "(#{args.join('|')})" }
   Regexp.new(
     parts.map do |part|
       if part =~ /<(\w+)\/>/
-        choice.("<#{$1} ?/>", "<#{$1}></#{$1}>")
+        choice.("<#{$1} ?/>", "<#{$1}>", "<#{$1}></#{$1}>")
       else
         Regexp.escape(part).gsub('"', choice.('"', '&quot;'))
       end

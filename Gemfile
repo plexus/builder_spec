@@ -1,4 +1,5 @@
 gem 'nokogiri'
 gem 'hpricot'
 gem 'builder'
+gem 'hexp', github: 'plexus/hexp'
 gem 'rspec'
